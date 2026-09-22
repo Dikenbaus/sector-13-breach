@@ -65,9 +65,7 @@ function unlockAudio(){
   if(!a) return;
   if(a.unlocked) return;
   a.unlocked=true;
-  // resume on gesture
   a.ctx.resume?.();
-  // tiny click to prime
   const o=a.ctx.createOscillator();
   const g=a.ctx.createGain();
   o.type='square';
@@ -75,6 +73,9 @@ function unlockAudio(){
   g.gain.value=0.0001;
   o.connect(g);g.connect(a.master);
   o.start();o.stop(a.ctx.currentTime+0.02);
+}
+function safeUnlockAudio(){
+  try{unlockAudio()}catch(_){/* never break input */}
 }
 function setVolume01(v){
   const a=ensureAudio();
@@ -98,17 +99,14 @@ function beep(type){
   o.connect(g);g.connect(a.master);
 }
 
-// ---------------- resize ----------------
 function resize(){const d=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.floor(innerWidth*d);canvas.height=Math.floor(innerHeight*d);ctx.setTransform(d,0,0,d,0,0);}
 addEventListener('resize',resize);resize();
 
-// ---------------- collision ----------------
 function wall(x,y){return x<0||y<0||x>=W||y>=H||MAP[Math.floor(y)][Math.floor(x)]==='1'}
 function isFree(x,y,r){
   return !wall(x+r,y+r)&&!wall(x-r,y+r)&&!wall(x+r,y-r)&&!wall(x-r,y-r);
 }
 function safeMove(nx,ny){
-  // Slightly larger radius + swept movement to reduce "invisible wall" feel.
   const r=.24;
   const ox=player.x, oy=player.y;
   const dx=nx-ox, dy=ny-oy;
@@ -117,11 +115,8 @@ function safeMove(nx,ny){
   for(let i=0;i<steps;i++){
     const tx=ox+dx*((i+1)/steps);
     const ty=oy+dy*((i+1)/steps);
-    // try full
     if(isFree(tx,ty,r)){x=tx;y=ty;continue;}
-    // try x only
     if(isFree(tx,y,r))x=tx;
-    // try y only
     if(isFree(x,ty,r))y=ty;
   }
   player.x=x;player.y=y;
@@ -148,7 +143,6 @@ function ensureNotInWall(){
   player.x=s.x;player.y=s.y;
 }
 
-// ---------------- wall look ----------------
 function wallTex(hit,dist,ra){
   const shade=Math.max(40,170-dist*7);
   const fog=Math.min(.85,Math.max(0,(dist-4)/16));
@@ -162,19 +156,14 @@ function wallTex(hit,dist,ra){
   return {r,g,b,fog};
 }
 
-// ---------------- minimap ----------------
 function drawMinimap(){
   if(!mm) return;
   const size=minimap.width;
   mm.clearRect(0,0,size,size);
   mm.globalAlpha=1;
-
-  // background
   mm.fillStyle='rgba(0,0,0,.45)';
   mm.fillRect(0,0,size,size);
-
   const scale=size/W;
-  // walls
   for(let y=0;y<H;y++){
     for(let x=0;x<W;x++){
       if(MAP[y][x]==='1'){
@@ -183,15 +172,12 @@ function drawMinimap(){
       }
     }
   }
-
-  // entities
   const drawDot=(x,y,color,r)=>{
     mm.fillStyle=color;
     mm.beginPath();
     mm.arc(x*scale,y*scale,r,0,Math.PI*2);
     mm.fill();
   };
-
   for(const e of entities.values()){
     if(e.dead) continue;
     const isMe=e.id===player.id;
@@ -201,31 +187,24 @@ function drawMinimap(){
     if(m.dead) continue;
     drawDot(m.x,m.y,'rgba(255,96,77,.9)',2.2);
   }
-
-  // facing direction arrow
   mm.strokeStyle='rgba(185,242,39,.9)';
   mm.lineWidth=2;
   mm.beginPath();
   mm.moveTo(player.x*scale,player.y*scale);
   mm.lineTo((player.x+Math.cos(player.a)*0.9)*scale,(player.y+Math.sin(player.a)*0.9)*scale);
   mm.stroke();
-
-  // border
   mm.strokeStyle='rgba(255,255,255,.18)';
   mm.lineWidth=1;
   mm.strokeRect(0.5,0.5,size-1,size-1);
 }
 
-// ---------------- render ----------------
 let recoil=0;
 function render(){
   const w=innerWidth,h=innerHeight;
   ctx.fillStyle='#12161a';ctx.fillRect(0,0,w,h/2);
   ctx.fillStyle='#23221d';ctx.fillRect(0,h/2,w,h/2);
-
   const rays=Math.min(360,Math.ceil(w/3)),strip=w/rays;
   const depth=[];
-
   for(let i=0;i<rays;i++){
     const ra=player.a-FOV/2+FOV*(i/rays),hit=castRay(ra),d=hit.d*Math.cos(ra-player.a);
     depth[i]=d;
@@ -233,7 +212,6 @@ function render(){
     const t=wallTex(hit,d,ra);
     ctx.fillStyle=`rgb(${t.r},${t.g},${t.b})`;
     ctx.fillRect(i*strip,h/2-wh/2,strip+1,wh);
-
     const u=(Math.min(hit.x%1,1-hit.x%1)<Math.min(hit.y%1,1-hit.y%1))?(hit.y%1):(hit.x%1);
     const groove=(Math.sin(u*40)*.5+.5);
     if(groove>.78){
@@ -245,17 +223,12 @@ function render(){
       ctx.fillRect(i*strip,h/2-wh/2,strip+1,wh);
     }
   }
-
   renderEntities(depth,rays,strip,w,h);
-
-  // muzzle flash
   if(flash>0){
     ctx.fillStyle=`rgba(255,235,170,${flash})`;
     ctx.fillRect(w*.43,h*.47,w*.14,h*.08);
     flash=Math.max(0,flash-.08);
   }
-
-  // crosshair
   ctx.save();
   ctx.translate(w/2,h/2);
   ctx.strokeStyle='rgba(255,255,255,.55)';
@@ -267,7 +240,6 @@ function render(){
   ctx.moveTo(0,10);ctx.lineTo(0,4);
   ctx.stroke();
   ctx.restore();
-
   drawWeapon(w,h);
   drawMinimap();
 }
@@ -277,24 +249,18 @@ function renderEntities(depth,rays,strip,w,h){
     .filter(e=>e.id!==player.id&&!e.dead)
     .map(e=>({...e,dist:Math.hypot(e.x-player.x,e.y-player.y)}))
     .sort((a,b)=>b.dist-a.dist);
-
   for(const e of all){
     const ang=angleDiff(Math.atan2(e.y-player.y,e.x-player.x),player.a);
     if(Math.abs(ang)>FOV*.7||e.dist<.2)continue;
-
     const sx=w/2+(ang/FOV)*w;
     const size=Math.min(h*1.25,h/e.dist*.78);
     const ray=Math.floor(sx/strip);
     if(ray<0||ray>=rays||e.dist>depth[ray]+.4)continue;
-
     const isMonster=e.kind==='monster';
-
-    // shadow
     ctx.fillStyle='rgba(0,0,0,.35)';
     ctx.beginPath();
     ctx.ellipse(sx,h/2+size*.46,size*.26,size*.08,0,0,Math.PI*2);
     ctx.fill();
-
     if(isMonster){
       ctx.fillStyle='#ff604d';
       ctx.fillRect(sx-size*.24,h/2-size*.40,size*.48,size*.74);
@@ -310,27 +276,21 @@ function renderEntities(depth,rays,strip,w,h){
       ctx.beginPath();
       ctx.ellipse(sx,y0+headR,headR*1.15,headR*1.15,0,0,Math.PI*2);
       ctx.fill();
-
       ctx.fillStyle='#f2d2b6';
       ctx.beginPath();
       ctx.ellipse(sx,y0+headR,headR,headR,0,0,Math.PI*2);
       ctx.fill();
-
       ctx.fillStyle='#2a7bff';
       ctx.fillRect(sx-size*.16,y0+headR*2.0,size*.32,size*.40);
-
       ctx.fillStyle='#18438f';
       ctx.fillRect(sx-size*.22,y0+headR*2.05,size*.06,size*.34);
       ctx.fillRect(sx+size*.16,y0+headR*2.05,size*.06,size*.34);
-
       ctx.fillStyle='#1a1f24';
       ctx.fillRect(sx-size*.13,y0+headR*2.40,size*.10,size*.26);
       ctx.fillRect(sx+size*.03,y0+headR*2.40,size*.10,size*.26);
-
       ctx.fillStyle='rgba(10,20,28,.65)';
       ctx.fillRect(sx-headR*0.72,y0+headR*0.76,headR*1.44,headR*0.45);
     }
-
     if(e.name){
       ctx.font='700 10px system-ui';
       ctx.textAlign='center';
@@ -348,7 +308,6 @@ function drawWeapon(w,h){
   const bob=Math.sin(performance.now()/90)*2;
   const kick=recoil*14;
   ctx.translate(w/2,h+bob+kick);
-
   ctx.fillStyle='rgba(0,0,0,.32)';
   ctx.beginPath();
   ctx.moveTo(-w*.11,0);
@@ -356,10 +315,8 @@ function drawWeapon(w,h){
   ctx.lineTo(w*.07,-h*.18);
   ctx.lineTo(w*.11,0);
   ctx.fill();
-
   ctx.fillStyle='#2b3236';
   ctx.fillRect(-w*.06,-h*.23,w*.12,h*.16);
-
   ctx.fillStyle='#121618';
   ctx.beginPath();
   ctx.moveTo(-w*.02,-h*.07);
@@ -367,23 +324,19 @@ function drawWeapon(w,h){
   ctx.lineTo(w*.05,0);
   ctx.lineTo(w*.02,-h*.07);
   ctx.fill();
-
   ctx.fillStyle='#778086';
   ctx.fillRect(-w*.02,-h*.25,w*.04,h*.05);
   ctx.fillStyle='#b9f227';
   ctx.fillRect(-w*.012,-h*.205,w*.024,h*.020);
-
   ctx.strokeStyle='rgba(255,255,255,.55)';
   ctx.lineWidth=2;
   ctx.beginPath();
   ctx.moveTo(-w*.018,-h*.27);ctx.lineTo(-w*.018,-h*.24);
   ctx.moveTo(w*.018,-h*.27);ctx.lineTo(w*.018,-h*.24);
   ctx.stroke();
-
   ctx.restore();
 }
 
-// ---------------- game loop ----------------
 function update(dt){
   if(!running||player.dead)return;
   ensureNotInWall();
@@ -547,24 +500,24 @@ function startOffline(){
 function stick(el,cb){
   let id=null,cx=0,cy=0,knob=el.querySelector('i');
   const end=()=>{id=null;knob.style.transform='';cb(0,0)};
-  el.addEventListener('pointerdown',e=>{unlockAudio();id=e.pointerId;const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;el.setPointerCapture(id)});
+  el.addEventListener('pointerdown',e=>{safeUnlockAudio();id=e.pointerId;const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;el.setPointerCapture(id)});
   el.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;let x=(e.clientX-cx)/45,y=(e.clientY-cy)/45,l=Math.hypot(x,y);if(l>1){x/=l;y/=l}knob.style.transform=`translate(${x*34}px,${y*34}px)`;cb(x,y)});
   el.addEventListener('pointerup',end);
   el.addEventListener('pointercancel',end);
 }
 stick($('#move-pad'),(x,y)=>{input.strafe=x;input.move=-y});
 stick($('#look-pad'),(x,y)=>{input.turn=x});
-$('#fire').addEventListener('pointerdown',e=>{unlockAudio();e.preventDefault();input.firing=true});
+$('#fire').addEventListener('pointerdown',e=>{safeUnlockAudio();e.preventDefault();input.firing=true});
 $('#fire').addEventListener('pointerup',()=>input.firing=false);
 $('#fire').addEventListener('pointercancel',()=>input.firing=false);
-document.addEventListener('keydown',e=>{unlockAudio();keys[e.code]=true;if(e.code==='Space')e.preventDefault()});
+document.addEventListener('keydown',e=>{safeUnlockAudio();keys[e.code]=true;if(e.code==='Space')e.preventDefault()});
 document.addEventListener('keyup',e=>keys[e.code]=false);
-canvas.addEventListener('click',()=>{unlockAudio();if(running&&matchMedia('(pointer:fine)').matches)canvas.requestPointerLock?.()});
+canvas.addEventListener('click',()=>{safeUnlockAudio();if(running&&matchMedia('(pointer:fine)').matches)canvas.requestPointerLock?.()});
 document.addEventListener('mousemove',e=>{if(document.pointerLockElement===canvas)player.a+=e.movementX*.0025});
-document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{unlockAudio();document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;savePrefs({mode})});
-$('#online').onclick=()=>{unlockAudio();connect();};
-$('#offline').onclick=()=>{unlockAudio();startOffline();};
-$('#respawn').onclick=()=>{unlockAudio();respawn();};
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{safeUnlockAudio();document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;savePrefs({mode})});
+$('#online').onclick=()=>{safeUnlockAudio();connect();};
+$('#offline').onclick=()=>{safeUnlockAudio();startOffline();};
+$('#respawn').onclick=()=>{safeUnlockAudio();respawn();};
 $('#exit').onclick=()=>location.reload();
 if($('#volume')){
   const prefs=loadPrefs();
@@ -572,7 +525,7 @@ if($('#volume')){
   $('#volume').value=String(v0);
   setVolume01(v0/100);
   $('#volume').addEventListener('input',e=>{
-    unlockAudio();
+    safeUnlockAudio();
     const v=Number(e.target.value)||0;
     setVolume01(v/100);
     savePrefs({volume:v});
