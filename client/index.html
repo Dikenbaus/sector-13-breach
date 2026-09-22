@@ -26,6 +26,7 @@
       </div>
       <label>Код комнаты <small>оставьте пустым, чтобы создать</small><input id="room" maxlength="6" placeholder="НОВАЯ" autocapitalize="characters" /></label>
       <label>Адрес сервера <small>для сетевой игры</small><input id="server" placeholder="wss://sector-13-server.onrender.com" inputmode="url" /></label>
+      <label>Громкость <small>звуки игры</small><input id="volume" type="range" min="0" max="100" value="70" /></label>
       <button id="online" class="primary">ВОЙТИ В СЕКТОР</button>
       <button id="offline" class="secondary">ТРЕНИРОВКА ОФЛАЙН</button>
       <p id="status" class="status" aria-live="polite"></p>
@@ -43,6 +44,7 @@
         <div class="health"><small>ЗДОРОВЬЕ</small><strong id="health">100</strong></div>
         <div class="ammo"><small>ИМПУЛЬСЫ</small><strong id="ammo">∞</strong></div>
       </div>
+      <canvas id="minimap" aria-label="Миникарта" width="128" height="128"></canvas>
       <div id="feed" class="feed"></div>
     </section>
 
