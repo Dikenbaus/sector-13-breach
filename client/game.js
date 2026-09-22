@@ -14,6 +14,33 @@ let player={id:'local',name:'Ranger',x:2.5,y:2.5,a:0,hp:100,score:0,dead:false};
 let entities=new Map(), monsters=new Map();
 const spawnPoints=[[2.5,2.5],[13.5,2.5],[2.5,13.5],[13.5,13.5],[7.5,7.5]];
 
+const PREFS_KEY='sectorPrefs';
+function loadPrefs(){
+  try{
+    const raw=localStorage.getItem(PREFS_KEY);
+    return raw?JSON.parse(raw):{};
+  }catch(_){
+    return {};
+  }
+}
+function savePrefs(patch){
+  const prefs={...loadPrefs(),...patch};
+  try{localStorage.setItem(PREFS_KEY,JSON.stringify(prefs))}catch(_){/* ignore */}
+  return prefs;
+}
+function applyPrefsToMenu(){
+  const prefs=loadPrefs();
+  if(typeof prefs.name==='string')$('#name').value=prefs.name.slice(0,12)||'Ranger';
+  if(typeof prefs.room==='string')$('#room').value=prefs.room.slice(0,6);
+  if(typeof prefs.server==='string')$('#server').value=prefs.server;
+  if(prefs.mode==='coop'||prefs.mode==='deathmatch'){
+    mode=prefs.mode;
+    document.querySelectorAll('.mode').forEach(b=>{
+      b.classList.toggle('active',b.dataset.mode===mode);
+    });
+  }
+}
+
 function resize(){const d=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.floor(innerWidth*d);canvas.height=Math.floor(innerHeight*d);ctx.setTransform(d,0,0,d,0,0);}
 addEventListener('resize',resize);resize();
 function wall(x,y){return x<0||y<0||x>=W||y>=H||MAP[Math.floor(y)][Math.floor(x)]==='1'}
@@ -35,16 +62,16 @@ function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;update(dt);re
 function formatTime(s){s=Math.max(0,s|0);return `${String((s/60)|0).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
 function feed(text){const p=document.createElement('p');p.textContent=text;$('#feed').prepend(p);setTimeout(()=>p.remove(),3000)}
 function send(data){if(socket?.readyState===1)socket.send(JSON.stringify(data))}
-function connect(){let url=$('#server').value.trim();if(!url){statusEl.textContent='Укажите адрес сервера Render или запустите тренировку.';return}url=url.replace(/^http/,'ws').replace(/\/$/,'');localStorage.setItem('sectorServer',url);statusEl.textContent='Устанавливаем защищённый канал…';socket=new WebSocket(url);socket.onopen=()=>send({type:'join',room:$('#room').value.trim().toUpperCase(),mode,name:$('#name').value.trim()||'Ranger'});socket.onmessage=e=>handleMessage(JSON.parse(e.data));socket.onerror=()=>statusEl.textContent='Сервер недоступен. Проверьте адрес или попробуйте позже.';socket.onclose=()=>{if(online){feed('Связь с сервером потеряна');online=false}}}
+function connect(){let url=$('#server').value.trim();if(!url){statusEl.textContent='Укажите адрес сервера Render или запустите тренировку.';return}url=url.replace(/^http/,'ws').replace(/\/$/,'');savePrefs({server:url,name:$('#name').value.trim()||'Ranger',room:$('#room').value.trim().toUpperCase(),mode});statusEl.textContent='Устанавливаем защищённый канал…';socket=new WebSocket(url);socket.onopen=()=>send({type:'join',room:$('#room').value.trim().toUpperCase(),mode,name:$('#name').value.trim()||'Ranger'});socket.onmessage=e=>handleMessage(JSON.parse(e.data));socket.onerror=()=>statusEl.textContent='Сервер недоступен. Проверьте адрес или попробуйте позже.';socket.onclose=()=>{if(online){feed('Связь с сервером потеряна');online=false}}}
 function handleMessage(m){if(m.type==='welcome'){online=true;room=m.room;player.id=m.id;Object.assign(player,m.player);timeLeft=m.timeLeft;startGame(m.mode);feed(`Комната ${room} готова`)}else if(m.type==='state'){timeLeft=m.timeLeft;const mine=m.players.find(p=>p.id===player.id);if(mine){player.hp=mine.hp;player.score=mine.score;player.dead=mine.dead;$('#health').textContent=player.hp;$('#score').textContent=player.score;if(player.dead&&running)die()}entities=new Map(m.players.map(p=>[p.id,p]));monsters=new Map((m.monsters||[]).map(x=>[x.id,x]));}else if(m.type==='event')feed(m.text);else if(m.type==='error')statusEl.textContent=m.message;}
 function startGame(selected){mode=selected;menu.classList.add('hidden');death.classList.add('hidden');hud.classList.remove('hidden');if(matchMedia('(pointer:coarse)').matches)controls.classList.remove('hidden');$('#room-code').textContent=room;$('#mode-label').textContent=online?(mode==='coop'?'КООПЕРАТИВ':'DEATHMATCH'):'ТРЕНИРОВКА';running=true;player.dead=false;}
-function startOffline(){online=false;room='LOCAL';player.name=$('#name').value.trim()||'Ranger';player.score=0;timeLeft=300;monsters.clear();for(let i=0;i<(mode==='coop'?5:3);i++){const p=spawnPoints[(i+1)%spawnPoints.length];monsters.set('m'+i,{id:'m'+i,kind:'monster',name:'DRONE',x:p[0],y:p[1],hp:100,dead:false})}startGame(mode)}
+function startOffline(){online=false;room='LOCAL';const nm=$('#name').value.trim()||'Ranger';player.name=nm;player.score=0;timeLeft=300;savePrefs({name:nm,room:$('#room').value.trim().toUpperCase(),mode});monsters.clear();for(let i=0;i<(mode==='coop'?5:3);i++){const p=spawnPoints[(i+1)%spawnPoints.length];monsters.set('m'+i,{id:'m'+i,kind:'monster',name:'DRONE',x:p[0],y:p[1],hp:100,dead:false})}startGame(mode)}
 function stick(el,cb){let id=null,cx=0,cy=0,knob=el.querySelector('i');const end=()=>{id=null;knob.style.transform='';cb(0,0)};el.addEventListener('pointerdown',e=>{id=e.pointerId;const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;el.setPointerCapture(id)});el.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;let x=(e.clientX-cx)/45,y=(e.clientY-cy)/45,l=Math.hypot(x,y);if(l>1){x/=l;y/=l}knob.style.transform=`translate(${x*34}px,${y*34}px)`;cb(x,y)});el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end)}
 stick($('#move-pad'),(x,y)=>{input.strafe=x;input.move=-y});stick($('#look-pad'),(x,y)=>{input.turn=x});
 $('#fire').addEventListener('pointerdown',e=>{e.preventDefault();input.firing=true});$('#fire').addEventListener('pointerup',()=>input.firing=false);$('#fire').addEventListener('pointercancel',()=>input.firing=false);
 document.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space')e.preventDefault()});document.addEventListener('keyup',e=>keys[e.code]=false);
 canvas.addEventListener('click',()=>{if(running&&matchMedia('(pointer:fine)').matches)canvas.requestPointerLock?.()});document.addEventListener('mousemove',e=>{if(document.pointerLockElement===canvas)player.a+=e.movementX*.0025});
-document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode});
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;savePrefs({mode})});
 $('#online').onclick=connect;$('#offline').onclick=startOffline;$('#respawn').onclick=respawn;$('#exit').onclick=()=>location.reload();
-$('#server').value=localStorage.getItem('sectorServer')||'';
+applyPrefsToMenu();
 })();
