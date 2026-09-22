@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="description" content="Sector 13: Breach — мобильный ретро-FPS с Deathmatch и кооперативом." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Sector 13: Breach</title>
+</head>
+<body>
+  <main id="app">
+    <canvas id="game" aria-label="Игровой экран"></canvas>
+
+    <section id="menu" class="panel">
+      <p class="eyebrow">MOBILE RETRO FPS</p>
+      <h1>SECTOR 13<br><span>BREACH</span></h1>
+      <p class="lede">Сектор молчит. Группа зачистки уже внутри.</p>
+
+      <label>Позывной<input id="name" maxlength="12" value="Ranger" autocomplete="nickname" /></label>
+      <div class="mode-row" role="group" aria-label="Режим игры">
+        <button class="mode active" data-mode="deathmatch">Deathmatch</button>
+        <button class="mode" data-mode="coop">Кооператив</button>
+      </div>
+      <label>Код комнаты <small>оставьте пустым, чтобы создать</small><input id="room" maxlength="6" placeholder="НОВАЯ" autocapitalize="characters" /></label>
+      <label>Адрес сервера <small>для сетевой игры</small><input id="server" placeholder="wss://sector-13-server.onrender.com" inputmode="url" /></label>
+      <button id="online" class="primary">ВОЙТИ В СЕКТОР</button>
+      <button id="offline" class="secondary">ТРЕНИРОВКА ОФЛАЙН</button>
+      <p id="status" class="status" aria-live="polite"></p>
+      <p class="hint">Компьютер: WASD · мышь/стрелки · пробел</p>
+    </section>
+
+    <section id="hud" class="hidden" aria-live="polite">
+      <div class="topbar">
+        <div><small>КОМНАТА</small><strong id="room-code">LOCAL</strong></div>
+        <div class="center"><small id="mode-label">ТРЕНИРОВКА</small><strong id="timer">05:00</strong></div>
+        <div class="right"><small>СЧЁТ</small><strong id="score">0</strong></div>
+      </div>
+      <div class="crosshair" aria-hidden="true"></div>
+      <div class="vitals">
+        <div class="health"><small>ЗДОРОВЬЕ</small><strong id="health">100</strong></div>
+        <div class="ammo"><small>ИМПУЛЬСЫ</small><strong id="ammo">∞</strong></div>
+      </div>
+      <div id="feed" class="feed"></div>
+    </section>
+
+    <section id="mobile-controls" class="hidden" aria-label="Сенсорное управление">
+      <div id="move-pad" class="stick"><i></i></div>
+      <div id="look-pad" class="stick look"><i></i></div>
+      <button id="fire" aria-label="Огонь">ОГОНЬ</button>
+    </section>
+
+    <section id="death" class="panel compact hidden">
+      <p class="eyebrow">СИГНАЛ ПОТЕРЯН</p>
+      <h2>ВЫ УНИЧТОЖЕНЫ</h2>
+      <p id="death-score">Счёт: 0</p>
+      <button id="respawn" class="primary">ВОЗРОДИТЬСЯ</button>
+      <button id="exit" class="secondary">ВЫЙТИ</button>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
